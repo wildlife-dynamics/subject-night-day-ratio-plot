@@ -1,0 +1,17 @@
+designer-run:
+  name: Subject night day plot
+  description: The values used with ▶ Run in the designer.
+  params:
+    er_connection:
+      data_source:
+        name: Save the Elephants
+    time_range:
+      since: '2026-04-01T10:57:40'
+      until: '2026-10-20T10:57:46'
+    subjectgroup_observations:
+      subject_group_name: ecoscope
+    groupers:
+      groupers:
+      - index_name: subject_name
+    workflow_details:
+      name: a
