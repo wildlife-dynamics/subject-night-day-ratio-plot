@@ -1,5 +1,25 @@
 {
   "properties": {
+    "workflow_details": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Workflow Name",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Workflow Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object",
+      "description": "Add information that will help to differentiate this workflow from another.",
+      "title": "Set Workflow Details"
+    },
     "er_connection": {
       "additionalProperties": false,
       "properties": {
@@ -48,21 +68,6 @@
       "description": "Choose the period of time to analyze.",
       "title": "Set Time Range"
     },
-    "subjectgroup_observations": {
-      "additionalProperties": false,
-      "properties": {
-        "subject_group_name": {
-          "title": "Subject Group Name",
-          "type": "string",
-          "description": "\u26a0\ufe0f The use of a group with mixed subtypes could lead to unexpected results"
-        }
-      },
-      "required": [
-        "subject_group_name"
-      ],
-      "type": "object",
-      "title": "Subject Group"
-    },
     "groupers": {
       "additionalProperties": false,
       "properties": {
@@ -91,20 +96,55 @@
       "required": [],
       "title": "Set Groupers"
     },
-    "workflow_details": {
+    "subjectgroup_observations": {
       "additionalProperties": false,
       "properties": {
-        "name": {
-          "title": "Workflow Name",
-          "type": "string"
+        "subject_group_name": {
+          "title": "Subject Group Name",
+          "type": "string",
+          "description": "The EarthRanger subject group to map, picked from the chosen data source's subject groups. \u26a0\ufe0f The use of a group with mixed subtypes could lead to unexpected results.",
+          "ecoscope:transform": [
+            {
+              "transformer": "EarthRangerEnumResolver",
+              "transformer_kws": {
+                "type": "subject_group_name",
+                "depends_on": "properties.er_connection.properties.data_source.properties.name"
+              }
+            }
+          ]
         }
       },
       "required": [
-        "name"
+        "subject_group_name"
       ],
       "type": "object",
-      "description": "Add information that will help to differentiate this workflow from another.",
-      "title": "Set Workflow Details"
+      "title": "Subject Group"
+    },
+    "to_trajectory": {
+      "additionalProperties": false,
+      "properties": {
+        "trajectory_segment_filter": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/TrajectorySegmentFilter"
+            }
+          ],
+          "default": {
+            "min_length_meters": 0.001,
+            "max_length_meters": 100000,
+            "min_time_secs": 1,
+            "max_time_secs": 172800,
+            "min_speed_kmhr": 0.01,
+            "max_speed_kmhr": 500
+          },
+          "title": " ",
+          "description": "Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Relocations To Trajectory"
     }
   },
   "$defs": {
@@ -213,7 +253,13 @@
       "properties": {
         "index_name": {
           "title": "Category",
-          "type": "string"
+          "type": "string",
+          "oneOf": [
+            {
+              "const": "subject_name",
+              "title": "Subject Name"
+            }
+          ]
         }
       },
       "required": [
@@ -221,9 +267,63 @@
       ],
       "title": "Category",
       "type": "object"
+    },
+    "TrajectorySegmentFilter": {
+      "properties": {
+        "min_length_meters": {
+          "default": 0.001,
+          "ecoscope:advanced": true,
+          "minimum": 0.001,
+          "title": "Minimum Segment Length (Meters)",
+          "type": "number"
+        },
+        "max_length_meters": {
+          "default": 100000,
+          "ecoscope:advanced": true,
+          "exclusiveMinimum": 0.001,
+          "title": "Maximum Segment Length (Meters)",
+          "type": "number"
+        },
+        "min_time_secs": {
+          "default": 1,
+          "ecoscope:advanced": true,
+          "minimum": 1,
+          "title": "Minimum Segment Duration (Seconds)",
+          "type": "number"
+        },
+        "max_time_secs": {
+          "default": 172800,
+          "ecoscope:advanced": true,
+          "exclusiveMinimum": 1,
+          "title": "Maximum Segment Duration (Seconds)",
+          "type": "number"
+        },
+        "min_speed_kmhr": {
+          "default": 0.01,
+          "ecoscope:advanced": true,
+          "exclusiveMinimum": 0.001,
+          "title": "Minimum Segment Speed (Kilometers per Hour)",
+          "type": "number"
+        },
+        "max_speed_kmhr": {
+          "default": 500,
+          "ecoscope:advanced": true,
+          "exclusiveMinimum": 0.001,
+          "title": "Maximum Segment Speed (Kilometers per Hour)",
+          "type": "number"
+        }
+      },
+      "title": "TrajectorySegmentFilter",
+      "type": "object"
     }
   },
   "uiSchema": {
+    "workflow_details": {
+      "ui:order": [
+        "name",
+        "description"
+      ]
+    },
     "time_range": {
       "ui:order": [
         "since",
@@ -232,11 +332,12 @@
       ]
     },
     "ui:order": [
+      "workflow_details",
       "er_connection",
       "time_range",
-      "subjectgroup_observations",
       "groupers",
-      "workflow_details"
+      "subjectgroup_observations",
+      "to_trajectory"
     ]
   },
   "additionalProperties": false

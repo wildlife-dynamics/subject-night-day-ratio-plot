@@ -51,6 +51,23 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     if validate_params_schema:
         _validate(params, _metadata.load_params_schema())
 
+    workflow_details = (
+        task(set_workflow_details)
+        .validate()
+        .set_task_instance_id("workflow_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(**(params.get("workflow_details") or {}))
+        .call()
+    )
+
     er_connection = (
         task(set_er_connection)
         .validate()
@@ -82,6 +99,23 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(time_format="%d %b %Y %H:%M:%S", **(params.get("time_range") or {}))
+        .call()
+    )
+
+    groupers = (
+        task(set_groupers)
+        .validate()
+        .set_task_instance_id("groupers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(**(params.get("groupers") or {}))
         .call()
     )
 
@@ -200,18 +234,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             ],
             unpack_depth=1,
         )
-        .partial(
-            relocations=is_night,
-            trajectory_segment_filter={
-                "min_length_meters": 0.001,
-                "max_length_meters": 100000,
-                "min_time_secs": 1,
-                "max_time_secs": 172800,
-                "min_speed_kmhr": 0.01,
-                "max_speed_kmhr": 500,
-            },
-            **(params.get("to_trajectory") or {}),
-        )
+        .partial(relocations=is_night, **(params.get("to_trajectory") or {}))
         .call()
     )
 
@@ -319,23 +342,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             column_prefix=None,
             **(params.get("decompose_date") or {}),
         )
-        .call()
-    )
-
-    groupers = (
-        task(set_groupers)
-        .validate()
-        .set_task_instance_id("groupers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(**(params.get("groupers") or {}))
         .call()
     )
 
@@ -451,9 +457,29 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             x_column="segment_start_date",
             y_column="night_day_ratio",
             category_column="subject_name",
-            line_kwargs=None,
-            layout_kwargs=None,
             smoothing=None,
+            line_kwargs={"shape": "linear"},
+            layout_kwargs={
+                "title": None,
+                "title_x": 0.01,
+                "title_y": 0.95,
+                "showlegend": True,
+                "fontsize": 20,
+                "fontcolor": "#2c3e50",
+                "plot_bgcolor": "#f5f5f5",
+                "xaxis": {
+                    "title": "Date",
+                    "showgrid": True,
+                    "gridcolor": "#e0e0e0",
+                    "gridwidth": 1,
+                    "tickformat": "%Y-%m-%d",
+                    "tickangle": -45,
+                    "rangemode": "auto",
+                },
+                "yaxis": {"title": "Night Day Ratio", "tickformat": ".1f"},
+                "legend_title": None,
+                "hovermode": "x unified",
+            },
             **(params.get("night_day_line_chart") or {}),
         )
         .mapvalues(argnames=["dataframe"], argvalues=night_day_ratio_df)
@@ -512,7 +538,8 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            title="Day Night Ratio", **(params.get("plot_widget_single_view") or {})
+            title="Night Day Ratio Line Chart",
+            **(params.get("plot_widget_single_view") or {}),
         )
         .map(argnames=["view", "data"], argvalues=persist_line_chart_text)
     )
@@ -551,7 +578,8 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            title="Day Night Ratio ", **(params.get("table_widget_single_view") or {})
+            title="Night Day Ratio Table",
+            **(params.get("table_widget_single_view") or {}),
         )
         .map(argnames=["view", "data"], argvalues=night_day_text)
     )
@@ -572,23 +600,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .partial(
             widgets=plot_widget_single_view, **(params.get("plot_widget_views") or {})
         )
-        .call()
-    )
-
-    workflow_details = (
-        task(set_workflow_details)
-        .validate()
-        .set_task_instance_id("workflow_details")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(description="", **(params.get("workflow_details") or {}))
         .call()
     )
 

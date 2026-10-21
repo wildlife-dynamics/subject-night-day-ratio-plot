@@ -1,31 +1,59 @@
-id: subject_day_night_location_map_2
+id: subject_night_day_plot
 requirements:
 - name: ecoscope-platform
   version: ==2.25.3
   channel: https://repo.prefix.dev/ecoscope-workflows/
+
 - name: ecoscope-workflows-ext-custom
   version: ==0.1.0rc14
   channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+
 - name: pydeck
   version: ==0.9.2
   channel: conda-forge
-- name: ecoscope-workflows-ext-wwf-virunga
-  version: ==1.0.0
-  channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+
 task-instance-defaults:
   skipif:
     conditions:
     - any_is_empty_df
     - any_dependency_skipped
+
+rjsf-overrides:
+  properties:
+    subjectgroup_observations.properties.subject_group_name:
+      title: Subject Group Name
+      type: string
+      description: The EarthRanger subject group to map, picked from the chosen data source's subject groups. ⚠️ The use of
+        a group with mixed subtypes could lead to unexpected results.
+      ecoscope:transform:
+      - transformer: EarthRangerEnumResolver
+        transformer_kws:
+          type: subject_group_name
+          depends_on: properties.er_connection.properties.data_source.properties.name
+  $defs:
+    ValueGrouper.properties.index_name.oneOf:
+    - const: subject_name
+      title: Subject Name
+
 workflow:
+- name: Set Workflow Details
+  id: workflow_details
+  task: set_workflow_details
+
 - name: Connect to EarthRanger
   id: er_connection
   task: set_er_connection
+
 - name: Set Time Range
   id: time_range
   task: set_time_range
   partial:
     time_format: '%d %b %Y %H:%M:%S'
+
+- name: Set Groupers
+  id: groupers
+  task: set_groupers
+
 - name: Subject Group
   id: subjectgroup_observations
   task: get_subjectgroup_observations
@@ -37,6 +65,7 @@ workflow:
     include_subjectsource_details: false
     filter: clean
     include_subject_additional: false
+
 - name: Process Relocations
   id: relocations
   task: process_relocations
@@ -59,11 +88,13 @@ workflow:
     - extra__subject__sex
     - extra__created_at
     - extra__subject__subject_subtype
+
 - name: Classify Is Night
   id: is_night
   task: classify_is_night
   partial:
     relocations: ${{ workflow.relocations.return }}
+
 - name: Persist Relocations
   id: persist_relocations
   task: persist_df
@@ -72,18 +103,13 @@ workflow:
     df: ${{ workflow.is_night.return }}
     filename: relocations
     filetype: geoparquet
+
 - name: Relocations To Trajectory
   id: to_trajectory
   task: relocations_to_trajectory
   partial:
     relocations: ${{ workflow.is_night.return }}
-    trajectory_segment_filter:
-      min_length_meters: 0.001
-      max_length_meters: 100000
-      min_time_secs: 1
-      max_time_secs: 172800
-      min_speed_kmhr: 0.01
-      max_speed_kmhr: 500
+
 - name: Persist Trajectories
   id: persist_trajectories
   task: persist_df
@@ -92,6 +118,7 @@ workflow:
     df: ${{ workflow.to_trajectory.return }}
     filename: trajectories
     filetype: geoparquet
+
 - name: Map Trajectory Columns
   id: map_trajectory_columns
   task: map_columns
@@ -112,6 +139,7 @@ workflow:
     retain_columns: []
     raise_if_not_found: true
     duplicate_strategy: suffix
+
 - name: Sort Night Day Values
   id: sort_night_day_values
   task: sort_values
@@ -120,6 +148,7 @@ workflow:
     column_name: is_night
     ascending: true
     na_position: last
+
 - name: Extract Date from Segment Start
   id: decompose_date
   task: ecoscope_workflows_ext_custom.tasks.transformation.decompose_datetime
@@ -130,15 +159,14 @@ workflow:
     - date
     remove_source: false
     column_prefix: null
-- name: Set Groupers
-  id: groupers
-  task: set_groupers
+
 - name: Split Groups
   id: groups
   task: split_groups
   partial:
     df: ${{ workflow.decompose_date.return }}
     groupers: ${{ workflow.groupers.return }}
+
 - name: Summarize Night Day Df
   id: night_day_ratio_df
   task: summarize_df
@@ -155,6 +183,7 @@ workflow:
     argnames:
     - df
     argvalues: ${{ workflow.groups.return }}
+
 - name: Persist Night Day Df
   id: persist_night_day_df
   task: persist_df
@@ -166,6 +195,7 @@ workflow:
     argnames:
     - df
     argvalues: ${{ workflow.night_day_ratio_df.return }}
+
 - name: Map Night Day DF
   id: night_day_df_mapped
   task: map_columns
@@ -182,6 +212,7 @@ workflow:
     argnames:
     - df
     argvalues: ${{ workflow.night_day_ratio_df.return }}
+
 - name: Draw Night Day Line Chart
   id: night_day_line_chart
   task: ecoscope.platform.tasks.results.draw_line_chart
@@ -189,13 +220,35 @@ workflow:
     x_column: segment_start_date
     y_column: night_day_ratio
     category_column: subject_name
-    line_kwargs: null
-    layout_kwargs: null
     smoothing: null
+    line_kwargs:
+      shape: "linear"
+    layout_kwargs:
+      title: null
+      title_x: 0.01
+      title_y:  0.95
+      showlegend: true
+      fontsize: 20
+      fontcolor: "#2c3e50"
+      plot_bgcolor: "#f5f5f5"
+      xaxis:
+        title: "Date"
+        showgrid: true
+        gridcolor: "#e0e0e0"
+        gridwidth: 1
+        tickformat: "%Y-%m-%d"
+        tickangle: -45
+        rangemode: auto
+      yaxis:
+        title: "Night Day Ratio"
+        tickformat: ".1f"
+      legend_title: null
+      hovermode: "x unified"
   mapvalues:
     argnames:
     - dataframe
     argvalues: ${{ workflow.night_day_ratio_df.return }}
+
 - name: Draw Night Day Table
   id: night_day_table
   task: draw_table
@@ -206,6 +259,7 @@ workflow:
     argnames:
     - dataframe
     argvalues: ${{ workflow.night_day_df_mapped.return }}
+
 - name: Persist Night Day Line Chart
   id: persist_line_chart_text
   task: persist_text
@@ -215,16 +269,18 @@ workflow:
     argnames:
     - text
     argvalues: ${{ workflow.night_day_line_chart.return }}
+
 - name: Create Plot Widget Single View
   id: plot_widget_single_view
   task: create_plot_widget_single_view
   partial:
-    title: Day Night Ratio
+    title: Night Day Ratio Line Chart
   map:
     argnames:
     - view
     - data
     argvalues: ${{ workflow.persist_line_chart_text.return }}
+
 - name: Persist Night Day Table as HTML
   id: night_day_text
   task: persist_text
@@ -234,31 +290,30 @@ workflow:
     argnames:
     - text
     argvalues: ${{ workflow.night_day_table.return }}
+
 - name: Create Table Widget Single View
   id: table_widget_single_view
   task: create_table_widget_single_view
   partial:
-    title: 'Day Night Ratio '
+    title: 'Night Day Ratio Table'
   map:
     argnames:
     - view
     - data
     argvalues: ${{ workflow.night_day_text.return }}
+
 - name: Merge Widget Views
   id: plot_widget_views
   task: merge_widget_views
   partial:
     widgets: ${{ workflow.plot_widget_single_view.return }}
-- name: Set Workflow Details
-  id: workflow_details
-  task: set_workflow_details
-  partial:
-    description: ''
+
 - name: Merge Widget Views
   id: table_widget_views
   task: merge_widget_views
   partial:
     widgets: ${{ workflow.table_widget_single_view.return }}
+
 - name: Gather Dashboard
   id: dashboard
   task: gather_dashboard
@@ -269,26 +324,3 @@ workflow:
     - ${{ workflow.table_widget_views.return }}
     groupers: ${{ workflow.groupers.return }}
     time_range: ${{ workflow.time_range.return }}
-rjsf-overrides:
-  properties:
-    subjectgroup_observations.properties.subject_group_name:
-      title: Subject Group Name
-      type: string
-      description: The EarthRanger subject group to map, picked from the chosen data source's subject groups. ⚠️ The use of
-        a group with mixed subtypes could lead to unexpected results.
-      ecoscope:transform:
-      - transformer: EarthRangerEnumResolver
-        transformer_kws:
-          type: subject_group_name
-          depends_on: properties.er_connection.properties.data_source.properties.name
-  $defs:
-    ValueGrouper.properties.index_name.oneOf:
-    - const: subject_name
-      title: Subject Name
-  uiSchema:
-    ui:order:
-    - workflow_details
-    - time_range
-    - groupers
-    - er_connection
-    - subjectgroup_observations

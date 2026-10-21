@@ -1,41 +1,53 @@
 # Subject night day plot
 
-Subject night day plot
+Charts, day by day, how much faster each subject in an EarthRanger subject group moves at night than by day. The night/day ratio compares movement speed in darkness with speed in daylight: 1 is balanced, above 1 the subject moves faster at night, below 1 it moves faster by day.
+
+Full documentation: [docs/index.html](docs/index.html) (User Guide, Technical Guide and Troubleshooting).
 
 ## What it does
 
 | Step | What it does |
 |---|---|
-| **Connect to EarthRanger** |  |
-| **Set Time Range** | Choose the period of time to analyze. |
-| **Subject Group** | Get observations for a subject group from EarthRanger. |
-| **Process Relocations** |  |
-| **Classify Is Night** | Classifies if segments occur at night in a trajectory dataframe |
-| **Persist Relocations** | Persist dataframe to a file or cloud storage object. |
-| **Relocations To Trajectory** |  |
-| **Persist Trajectories** | Persist dataframe to a file or cloud storage object. |
-| **Map Trajectory Columns** | Maps and transforms the columns of a DataFrame based on the provided parameters. The order of the operations is as follows: drop columns, retain/reorder columns, and rename columns. |
-| **Sort Night Day Values** |  |
-| **Extract Date from Segment Start** | Decompose a datetime column into its constituent temporal components. |
-| **Set Groupers** |  |
-| **Split Groups** |  |
-| **Summarize Night Day Df** |  |
-| **Persist Night Day Df** | Persist dataframe to a file or cloud storage object. |
-| **Map Night Day DF** | Maps and transforms the columns of a DataFrame based on the provided parameters. The order of the operations is as follows: drop columns, retain/reorder columns, and rename columns. |
-| **Draw Night Day Line Chart** | Generates a line chart from the provided params |
-| **Draw Night Day Table** | Creates an HTML table of the provided dataframe. |
-| **Persist Night Day Line Chart** | Persist text to a file or cloud storage object. |
-| **Create Plot Widget Single View** | Create a plot widget with a single view. |
-| **Persist Night Day Table as HTML** | Persist text to a file or cloud storage object. |
-| **Create Table Widget Single View** | Create a table widget with a single view. |
-| **Merge Widget Views** | Merge widgets with the same `title` and `widget_type`. |
-| **Set Workflow Details** | Add information that will help to differentiate this workflow from another. |
-| **Merge Widget Views** | Merge widgets with the same `title` and `widget_type`. |
-| **Gather Dashboard** |  |
+| **Set Workflow Details** | Name and description shown on the dashboard. |
+| **Connect to EarthRanger** | The EarthRanger site to read from. |
+| **Set Time Range** | The period to analyse. |
+| **Set Groupers** | How the chart and table are split: per subject, per time period or per spatial region. Leave empty for one view. |
+| **Subject Group** | Fetches the location fixes of the subject group picked from the drop-down, for the time range. |
+| **Process Relocations** | Cleans the fixes and drops known bad coordinates (0,0 / 1,1 / 180,90). |
+| **Classify Is Night** | Flags each fix as night when the sun is below the horizon at its location and time. |
+| **Persist Relocations** | Saves the classified fixes as `relocations.geoparquet`. |
+| **Relocations To Trajectory** | Joins the fixes into track segments, dropping segments outside the Trajectory Segment Filter limits. |
+| **Persist Trajectories** | Saves the track segments as `trajectories.geoparquet`. |
+| **Map Trajectory Columns** | Renames the subject and day/night columns (e.g. `subject_name`, `is_night`) and drops unused patrol columns. |
+| **Sort Night Day Values** | Orders the segments by their day/night flag. |
+| **Extract Date from Segment Start** | Adds a `segment_start_date` column: the date each segment starts on. |
+| **Split Groups** | One table of segments per group from Set Groupers. |
+| **Summarize Night Day Df** | Computes the night/day ratio for each subject on each date (2 decimal places). |
+| **Persist Night Day Df** | Saves each group's daily ratios as a CSV file. |
+| **Map Night Day DF** | Renames the table columns to Date, Subject Name and Night Day Ratio. |
+| **Draw Night Day Line Chart** | Draws the daily ratio over time, one line per subject, with dates on the x-axis. |
+| **Draw Night Day Table** | Draws the daily ratios as a table. |
+| **Persist Night Day Line Chart** | Saves each chart as an HTML file. |
+| **Create Plot Widget Single View** | Wraps each chart as a **Night Day Ratio Line Chart** widget. |
+| **Persist Night Day Table as HTML** | Saves each table as an HTML file. |
+| **Create Table Widget Single View** | Wraps each table as a **Night Day Ratio Table** widget. |
+| **Merge Widget Views** | Combines the per-group charts into one widget, so the dashboard filter switches between them. |
+| **Merge Widget Views** | Does the same for the per-group tables. |
+| **Gather Dashboard** | Collects the chart and table widgets into the dashboard. |
+
+## What it produces
+
+| Output | Description |
+|---|---|
+| `relocations.geoparquet` | The cleaned location fixes, each with an `is_night` flag. |
+| `trajectories.geoparquet` | The track segments built from those fixes. |
+| One CSV per group | The night/day ratio for each subject on each date. |
+| One HTML chart and table per group | As shown on the dashboard. |
+| Dashboard | A **Night Day Ratio Line Chart** and a **Night Day Ratio Table**; with groupers set, the dashboard filter switches between groups. |
 
 ## Requirements
 
-- Access to a **EarthRanger** data source, set up as a connection
+- Access to an **EarthRanger** data source, set up as a connection
 
 ---
 
@@ -48,50 +60,72 @@ In the workflow runner, add a new template using this repository's URL. Once add
 
 ## 2. Configure the Workflow
 
-You'll be prompted to fill in the following parameters before running.
-
-### Connect to EarthRanger
-
-| Field | Description | Default |
-|---|---|---|
-| Data source *(required)* | Select one of your configured data sources. | — |
-
-### Set Time Range
-
-| Field | Description | Default |
-|---|---|---|
-| Since *(required)* | The start time | — |
-| Until *(required)* | The end time | — |
-| Timezone |  | — |
-
-### Subject Group
-
-| Field | Description | Default |
-|---|---|---|
-| Subject Group Name *(required)* | ⚠️ The use of a group with mixed subtypes could lead to unexpected results | — |
-
-### Set Groupers
-
-| Field | Description | Default |
-|---|---|---|
-|   |             Specify how the data should be grouped to create the views for your dashboard.             This field is optional; if left blank, all the data will appear in a single view.              | — |
+You'll be prompted to fill in the following parameters before running. Fields marked *Advanced* are collapsed
+and can be left at their defaults.
 
 ### Set Workflow Details
 
 | Field | Description | Default |
 |---|---|---|
-| Workflow Name *(required)* |  | — |
+| Workflow Name *(required)* | A name for this run. | — |
+| Workflow Description | Optional notes about this run. | — |
+
+### Connect to EarthRanger
+
+| Field | Description | Default |
+|---|---|---|
+| Data source *(required)* | Select one of your configured EarthRanger data sources. Choose it first: the Subject Group drop-down lists this data source's groups. | — |
+
+### Set Time Range
+
+| Field | Description | Default |
+|---|---|---|
+| Since *(required)* | The start of the period to analyse. | — |
+| Until *(required)* | The end of the period to analyse. | — |
+| Timezone | Timezone the times are given in. | — |
+
+### Set Groupers
+
+| Field | Description | Default |
+|---|---|---|
+| Group by | Optional. Add a grouper to get one chart and table per group: **Category** (only *Subject Name*, one view per subject), **Temporal** (e.g. one per month) or **Spatial** (one per spatial region). Leave empty for a single view with a line for every subject. | — |
+
+### Subject Group
+
+| Field | Description | Default |
+|---|---|---|
+| Subject Group Name *(required)* | The EarthRanger subject group to analyse, picked from a drop-down of the chosen data source's subject groups. ⚠️ A group with mixed subtypes could give unexpected results. | — |
+
+### Relocations To Trajectory
+
+| Field | Description | Default |
+|---|---|---|
+| Trajectory Segment Filter | Limits on segment length, duration and speed; segments outside them are dropped. Advanced. | length 0.001 m – 100 km, time 1 s – 48 h, speed 0.01 – 500 km/h |
+
+---
+
+## 3. Results
+
+The workflow writes its files to the results folder the runner gives it (`ECOSCOPE_WORKFLOWS_RESULTS`) and
+shows its dashboard when it finishes. A ratio of 1 means equal speed by night and day, above 1 faster at night, below 1 faster by day. Dates without enough data in both daylight and darkness are left out.
 
 ---
 
 ## Developing
+
+The run form is set in `spec.yaml`:
+
+- `rjsf-overrides` turns **Subject Group Name** into a drop-down: the `EarthRangerEnumResolver` transform fills it with the subject groups of the data source picked under **Connect to EarthRanger** (`depends_on: properties.er_connection.properties.data_source.properties.name`).
+- `rjsf-overrides` `$defs` limits the **Category** grouper to *Subject Name* (`ValueGrouper.properties.index_name.oneOf`), the only subject column the views are split on.
+- The steps are not in task groups, so each form override is keyed by its step id (e.g. `subjectgroup_observations.properties.subject_group_name`).
+- The **Spatial** grouper's *Spatial Regions* is still a text field. To make it a drop-down of the site's spatial feature groups, add an `EarthRangerEnumResolver` transform with `type: spatial_feature_group` on `groupers.properties.groupers`.
 
 ```bash
 # recompile spec.yaml (first time: --install; after that: --update, which bumps VERSION.yaml)
 ./dev/recompile.sh --update
 
 # run the test cases in test-cases.yaml
-pixi run --manifest-path pixi.toml -e default bash dev/pytest-cli.sh subject_day_night_location_map_2 --all
+pixi run --manifest-path pixi.toml -e default bash dev/pytest-cli.sh subject_night_day_plot --all
 ```
 
 Documentation: [docs/index.html](docs/index.html).

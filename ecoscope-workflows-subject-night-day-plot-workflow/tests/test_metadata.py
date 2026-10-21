@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import jsonschema
 import pytest
-from ecoscope_workflows_subject_day_night_location_map_2_workflow.metadata import (
+from ecoscope_workflows_subject_night_day_plot_workflow.metadata import (
     load_params_schema,
     load_rjsf_schema,
 )
