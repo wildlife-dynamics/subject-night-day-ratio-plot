@@ -135,7 +135,7 @@
       },
       "required": [],
       "type": "object",
-      "title": "Relocations To Trajectory"
+      "title": "Trajectory Segment Filter"
     }
   },
   "$defs": {

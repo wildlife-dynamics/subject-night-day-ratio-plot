@@ -28,7 +28,6 @@ get_subjectgroup_observations = create_func_magicmock(  # 🧪
     anchor="ecoscope.platform.tasks.io",  # 🧪
     func_name="get_subjectgroup_observations",  # 🧪
 )  # 🧪
-from ecoscope.platform.tasks.analysis import summarize_df as summarize_df
 from ecoscope.platform.tasks.groupby import split_groups as split_groups
 from ecoscope.platform.tasks.io import persist_df as persist_df
 from ecoscope.platform.tasks.io import persist_text as persist_text
@@ -41,21 +40,21 @@ from ecoscope.platform.tasks.preprocessing import (
 from ecoscope.platform.tasks.results import (
     create_plot_widget_single_view as create_plot_widget_single_view,
 )
-from ecoscope.platform.tasks.results import (
-    create_table_widget_single_view as create_table_widget_single_view,
-)
 from ecoscope.platform.tasks.results import draw_line_chart as draw_line_chart
-from ecoscope.platform.tasks.results import draw_table as draw_table
 from ecoscope.platform.tasks.results import gather_dashboard as gather_dashboard
 from ecoscope.platform.tasks.results import merge_widget_views as merge_widget_views
 from ecoscope.platform.tasks.transformation import (
     classify_is_night as classify_is_night,
 )
+from ecoscope.platform.tasks.transformation import (
+    decompose_datetime as decompose_datetime,
+)
 from ecoscope.platform.tasks.transformation import map_columns as map_columns
 from ecoscope.platform.tasks.transformation import sort_values as sort_values
-from ecoscope_workflows_ext_custom.tasks.transformation import (
-    decompose_datetime as decompose_datetime_1,
+from ecoscope_workflows_ext_custom.tasks.analysis import (
+    summarize_night_day_ratio as summarize_night_day_ratio,
 )
+from ecoscope_workflows_ext_ste.tasks.filter import filter_rows as filter_rows
 
 
 def main(params: dict[str, Any], validate_params_schema: bool = True):
@@ -335,7 +334,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     decompose_date = (
-        task(decompose_datetime_1)
+        task(decompose_datetime)
         .validate()
         .set_task_instance_id("decompose_date")
         .handle_errors()
@@ -376,7 +375,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
     )
 
     night_day_ratio_df = (
-        task(summarize_df)
+        task(summarize_night_day_ratio)
         .validate()
         .set_task_instance_id("night_day_ratio_df")
         .handle_errors()
@@ -389,18 +388,34 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            groupby_cols=["segment_start_date", "subject_name"],
-            reset_index=True,
-            summary_params=[
-                {
-                    "display_name": "night_day_ratio",
-                    "aggregator": "night_day_ratio",
-                    "decimal_places": 2,
-                }
-            ],
+            groupby_cols=["subject_name"],
+            decimal_places=2,
             **(params.get("night_day_ratio_df") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=groups)
+        .mapvalues(argnames=["trajectory"], argvalues=groups)
+    )
+
+    exclude_null_values = (
+        task(filter_rows)
+        .validate()
+        .set_task_instance_id("exclude_null_values")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column_name="night_day_ratio",
+            op="gt",
+            value=0,
+            reset_index=False,
+            **(params.get("exclude_null_values") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=night_day_ratio_df)
     )
 
     persist_night_day_df = (
@@ -422,7 +437,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             filetype="csv",
             **(params.get("persist_night_day_df") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=night_day_ratio_df)
+        .mapvalues(argnames=["df"], argvalues=exclude_null_values)
     )
 
     night_day_df_mapped = (
@@ -440,7 +455,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             rename_columns={
-                "segment_start_date": "Date",
+                "solar_date": "Date",
                 "subject_name": "Subject Name",
                 "night_day_ratio": "Night Day Ratio",
             },
@@ -450,7 +465,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             duplicate_strategy="suffix",
             **(params.get("night_day_df_mapped") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=night_day_ratio_df)
+        .mapvalues(argnames=["df"], argvalues=exclude_null_values)
     )
 
     night_day_line_chart = (
@@ -467,9 +482,9 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            x_column="segment_start_date",
-            y_column="night_day_ratio",
-            category_column="subject_name",
+            x_column="Date",
+            y_column="Night Day Ratio",
+            category_column="Subject Name",
             smoothing=None,
             line_kwargs={"shape": "linear"},
             layout_kwargs={
@@ -494,25 +509,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 "hovermode": "x unified",
             },
             **(params.get("night_day_line_chart") or {}),
-        )
-        .mapvalues(argnames=["dataframe"], argvalues=night_day_ratio_df)
-    )
-
-    night_day_table = (
-        task(draw_table)
-        .validate()
-        .set_task_instance_id("night_day_table")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            columns=None, table_config=None, **(params.get("night_day_table") or {})
         )
         .mapvalues(argnames=["dataframe"], argvalues=night_day_df_mapped)
     )
@@ -557,46 +553,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .map(argnames=["view", "data"], argvalues=persist_line_chart_text)
     )
 
-    night_day_text = (
-        task(persist_text)
-        .validate()
-        .set_task_instance_id("night_day_text")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            **(params.get("night_day_text") or {}),
-        )
-        .mapvalues(argnames=["text"], argvalues=night_day_table)
-    )
-
-    table_widget_single_view = (
-        task(create_table_widget_single_view)
-        .validate()
-        .set_task_instance_id("table_widget_single_view")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            title="Night Day Ratio Table",
-            **(params.get("table_widget_single_view") or {}),
-        )
-        .map(argnames=["view", "data"], argvalues=night_day_text)
-    )
-
     plot_widget_views = (
         task(merge_widget_views)
         .validate()
@@ -616,25 +572,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
-    table_widget_views = (
-        task(merge_widget_views)
-        .validate()
-        .set_task_instance_id("table_widget_views")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            widgets=table_widget_single_view, **(params.get("table_widget_views") or {})
-        )
-        .call()
-    )
-
     dashboard = (
         task(gather_dashboard)
         .validate()
@@ -650,7 +587,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             details=workflow_details,
-            widgets=[plot_widget_views, table_widget_views],
+            widgets=[plot_widget_views],
             groupers=groupers,
             time_range=time_range,
             **(params.get("dashboard") or {}),

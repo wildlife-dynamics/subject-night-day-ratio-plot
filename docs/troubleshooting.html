@@ -42,7 +42,17 @@
 
     <div class="error-block">
       <p class="symptom">Some dates are missing from the chart, or the chart is empty</p>
-      <p>A date only gets a ratio if it has more than 1 hour of observed data in both daylight and darkness, from segments of 6 hours or less. Collars with long gaps between fixes, or that only report by day, leave dates out. See <a href="technical-guide.html#ratio">how the ratio is calculated</a>.</p>
+      <p>A night only gets a ratio if its solar day has more than 1 hour of observed data in both daylight and darkness, from segments of 6 hours or less. Days with no movement by night (a ratio of 0) or by day are also left out. Collars with long gaps between fixes, or that only report by day, leave dates out. See <a href="technical-guide.html#ratio">how the ratio is calculated</a>.</p>
+    </div>
+
+    <div class="error-block">
+      <p class="symptom">The dates on the chart are a day later than I expected</p>
+      <p>Each point is one night, dated by the local midnight in it, so the night of 3&ndash;4 May shows as 4 May. A solar day runs from local noon to local noon, not midnight to midnight.</p>
+    </div>
+
+    <div class="error-block">
+      <p class="symptom">The Night Day Ratio Table is missing from the dashboard</p>
+      <p>It was removed in version 0.3.0; the dashboard now shows only the line chart. The values are in each group's CSV file in the results folder.</p>
     </div>
 
     <div class="error-block">

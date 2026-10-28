@@ -49,7 +49,7 @@
     <h3 id="set-groupers">Set Groupers</h3>
     <table>
       <thead><tr><th>Field</th><th>Description</th><th>Default</th></tr></thead>
-      <tbody><tr><td>Group by</td><td>Optional. Add a grouper to get one chart and table per group: <strong>Category</strong> (only <em>Subject Name</em>, one view per subject), <strong>Temporal</strong> (e.g. one per month) or <strong>Spatial</strong> (one per spatial region). Leave empty for a single view with a line for every subject.</td><td>—</td></tr></tbody>
+      <tbody><tr><td>Group by</td><td>Optional. Add a grouper to get one chart per group: <strong>Category</strong> (only <em>Subject Name</em>, one view per subject), <strong>Temporal</strong> (e.g. one per month) or <strong>Spatial</strong> (one per spatial region). Leave empty for a single view with a line for every subject.</td><td>—</td></tr></tbody>
     </table>
     <h3 id="subject-group">Subject Group</h3>
     <table>
@@ -66,9 +66,9 @@
     <p>The workflow writes its files to the results folder the runner gives it (<code>ECOSCOPE_WORKFLOWS_RESULTS</code>), and shows its dashboard when it finishes.</p>
     <table>
       <thead><tr><th>Output</th><th>Description</th></tr></thead>
-      <tbody><tr><td><code>relocations.geoparquet</code></td><td>The cleaned location fixes, each with an <code>is_night</code> flag.</td></tr><tr><td><code>trajectories.geoparquet</code></td><td>The track segments built from those fixes.</td></tr><tr><td>One CSV per group</td><td>The night/day ratio for each subject on each date.</td></tr><tr><td>One HTML chart and table per group</td><td>As shown on the dashboard.</td></tr><tr><td>Dashboard</td><td>A <strong>Night Day Ratio Line Chart</strong> and a <strong>Night Day Ratio Table</strong>; with groupers set, the dashboard filter switches between groups.</td></tr></tbody>
+      <tbody><tr><td><code>relocations.geoparquet</code></td><td>The cleaned location fixes, each with an <code>is_night</code> flag.</td></tr><tr><td><code>trajectories.geoparquet</code></td><td>The track segments built from those fixes.</td></tr><tr><td>One CSV per group</td><td>The night/day ratio for each subject on each solar day, with columns <code>subject_name</code>, <code>solar_date</code> and <code>night_day_ratio</code>. Days that couldn't be scored are left out.</td></tr><tr><td>One HTML chart per group</td><td>As shown on the dashboard.</td></tr><tr><td>Dashboard</td><td>A <strong>Night Day Ratio Line Chart</strong>; with groupers set, the dashboard filter switches between groups.</td></tr></tbody>
     </table>
-    <p>A ratio of 1 means equal speed by night and day, above 1 faster at night, below 1 faster by day. Dates without enough data in both daylight and darkness are left out (see the <a href="technical-guide.html#ratio">Technical Guide</a>).</p>
+    <p>A ratio of 1 means equal speed by night and day, above 1 faster at night, below 1 faster by day. Each point is one night: a solar day runs from local noon to local noon and is dated by the local midnight in it, so the night of 3&ndash;4 May is plotted on 4 May. Days without more than 1 hour of observed data in both daylight and darkness, or with no movement by night or by day, are left out (see the <a href="technical-guide.html#ratio">Technical Guide</a>).</p>
   </main>
 
   <footer class="site-footer">

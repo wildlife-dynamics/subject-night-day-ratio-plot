@@ -26,7 +26,7 @@
 <body>
 
 <h1 id="subject-night-day-plot">Subject night day plot</h1>
-<p>Charts, day by day, how much faster each subject in an EarthRanger subject group moves at night than by day. The night/day ratio compares movement speed in darkness with speed in daylight: 1 is balanced, above 1 the subject moves faster at night, below 1 it moves faster by day.</p>
+<p>Charts, night by night, how much faster each subject in an EarthRanger subject group moves at night than by day. The night/day ratio compares movement speed in darkness with speed in daylight: 1 is balanced, above 1 the subject moves faster at night, below 1 it moves faster by day.</p>
 <p>Full documentation: <a href="docs/index.html">docs/index.html</a> (User Guide, Technical Guide and Troubleshooting).</p>
 <h2 id="what-it-does">What it does</h2>
 <table>
@@ -51,7 +51,7 @@
 </tr>
 <tr>
 <td><strong>Set Groupers</strong></td>
-<td>How the chart and table are split: per subject, per time period or per spatial region. Leave empty for one view.</td>
+<td>How the chart is split: per subject, per time period or per spatial region. Leave empty for one view.</td>
 </tr>
 <tr>
 <td><strong>Subject Group</strong></td>
@@ -87,7 +87,7 @@
 </tr>
 <tr>
 <td><strong>Extract Date from Segment Start</strong></td>
-<td>Adds a <code>segment_start_date</code> column: the date each segment starts on.</td>
+<td>Adds a <code>segment_start_date</code> column: the date each segment starts on (kept in the data; the ratio dates each night itself).</td>
 </tr>
 <tr>
 <td><strong>Split Groups</strong></td>
@@ -95,23 +95,23 @@
 </tr>
 <tr>
 <td><strong>Summarize Night Day Df</strong></td>
-<td>Computes the night/day ratio for each subject on each date (2 decimal places).</td>
+<td>Computes the night/day ratio for each subject on each solar day (local noon to local noon, so one whole night), dated by that night's local midnight (2 decimal places).</td>
+</tr>
+<tr>
+<td><strong>Exclude null values from night_day_ratio</strong></td>
+<td>Keeps only rows with a ratio above 0, dropping solar days that couldn't be scored.</td>
 </tr>
 <tr>
 <td><strong>Persist Night Day Df</strong></td>
-<td>Saves each group's daily ratios as a CSV file.</td>
+<td>Saves each group's nightly ratios as a CSV file.</td>
 </tr>
 <tr>
 <td><strong>Map Night Day DF</strong></td>
-<td>Renames the table columns to Date, Subject Name and Night Day Ratio.</td>
+<td>Renames the columns to Date, Subject Name and Night Day Ratio for the chart.</td>
 </tr>
 <tr>
 <td><strong>Draw Night Day Line Chart</strong></td>
-<td>Draws the daily ratio over time, one line per subject, with dates on the x-axis.</td>
-</tr>
-<tr>
-<td><strong>Draw Night Day Table</strong></td>
-<td>Draws the daily ratios as a table.</td>
+<td>Draws the nightly ratio over time, one line per subject, with dates on the x-axis.</td>
 </tr>
 <tr>
 <td><strong>Persist Night Day Line Chart</strong></td>
@@ -122,24 +122,12 @@
 <td>Wraps each chart as a <strong>Night Day Ratio Line Chart</strong> widget.</td>
 </tr>
 <tr>
-<td><strong>Persist Night Day Table as HTML</strong></td>
-<td>Saves each table as an HTML file.</td>
-</tr>
-<tr>
-<td><strong>Create Table Widget Single View</strong></td>
-<td>Wraps each table as a <strong>Night Day Ratio Table</strong> widget.</td>
-</tr>
-<tr>
 <td><strong>Merge Widget Views</strong></td>
 <td>Combines the per-group charts into one widget, so the dashboard filter switches between them.</td>
 </tr>
 <tr>
-<td><strong>Merge Widget Views</strong></td>
-<td>Does the same for the per-group tables.</td>
-</tr>
-<tr>
 <td><strong>Gather Dashboard</strong></td>
-<td>Collects the chart and table widgets into the dashboard.</td>
+<td>Collects the chart widget into the dashboard.</td>
 </tr>
 </tbody>
 </table>
@@ -162,15 +150,15 @@
 </tr>
 <tr>
 <td>One CSV per group</td>
-<td>The night/day ratio for each subject on each date.</td>
+<td>The night/day ratio for each subject on each solar day, with columns <code>subject_name</code>, <code>solar_date</code> and <code>night_day_ratio</code>. Days that couldn't be scored are left out.</td>
 </tr>
 <tr>
-<td>One HTML chart and table per group</td>
+<td>One HTML chart per group</td>
 <td>As shown on the dashboard.</td>
 </tr>
 <tr>
 <td>Dashboard</td>
-<td>A <strong>Night Day Ratio Line Chart</strong> and a <strong>Night Day Ratio Table</strong>; with groupers set, the dashboard filter switches between groups.</td>
+<td>A <strong>Night Day Ratio Line Chart</strong>; with groupers set, the dashboard filter switches between groups.</td>
 </tr>
 </tbody>
 </table>
@@ -264,7 +252,7 @@ and can be left at their defaults.</p>
 <tbody>
 <tr>
 <td>Group by</td>
-<td>Optional. Add a grouper to get one chart and table per group: <strong>Category</strong> (only <em>Subject Name</em>, one view per subject), <strong>Temporal</strong> (e.g. one per month) or <strong>Spatial</strong> (one per spatial region). Leave empty for a single view with a line for every subject.</td>
+<td>Optional. Add a grouper to get one chart per group: <strong>Category</strong> (only <em>Subject Name</em>, one view per subject), <strong>Temporal</strong> (e.g. one per month) or <strong>Spatial</strong> (one per spatial region). Leave empty for a single view with a line for every subject.</td>
 <td>—</td>
 </tr>
 </tbody>
@@ -306,7 +294,7 @@ and can be left at their defaults.</p>
 <hr />
 <h2 id="3-results">3. Results</h2>
 <p>The workflow writes its files to the results folder the runner gives it (<code>ECOSCOPE_WORKFLOWS_RESULTS</code>) and
-shows its dashboard when it finishes. A ratio of 1 means equal speed by night and day, above 1 faster at night, below 1 faster by day. Dates without enough data in both daylight and darkness are left out.</p>
+shows its dashboard when it finishes. A ratio of 1 means equal speed by night and day, above 1 faster at night, below 1 faster by day. Each point is one night: a solar day runs from local noon to local noon and is dated by the local midnight in it, so the night of 3–4 May is plotted on 4 May. Days without more than 1 hour of observed data in both daylight and darkness, or with no movement by night or by day, are left out.</p>
 <hr />
 <h2 id="developing">Developing</h2>
 <p>The run form is set in <code>spec.yaml</code>:</p>
@@ -314,6 +302,7 @@ shows its dashboard when it finishes. A ratio of 1 means equal speed by night an
 <li><code>rjsf-overrides</code> turns <strong>Subject Group Name</strong> into a drop-down: the <code>EarthRangerEnumResolver</code> transform fills it with the subject groups of the data source picked under <strong>Connect to EarthRanger</strong> (<code>depends_on: properties.er_connection.properties.data_source.properties.name</code>).</li>
 <li><code>rjsf-overrides</code> <code>$defs</code> limits the <strong>Category</strong> grouper to <em>Subject Name</em> (<code>ValueGrouper.properties.index_name.oneOf</code>), the only subject column the views are split on.</li>
 <li>The steps are not in task groups, so each form override is keyed by its step id (e.g. <code>subjectgroup_observations.properties.subject_group_name</code>).</li>
+<li><strong>Summarize Night Day Df</strong> uses <code>summarize_night_day_ratio</code> from <code>ecoscope-workflows-ext-custom</code> (0.1.5), which scores each solar day separately (night speed ÷ day speed) instead of slicing segments by UTC date, which cut nights near longitude 0 in half. <strong>Exclude null values from night_day_ratio</strong> uses <code>filter_rows</code> from <code>ecoscope-workflows-ext-ste</code> (0.0.24) to drop the days it returns no ratio for.</li>
 <li>The <strong>Spatial</strong> grouper's <em>Spatial Regions</em> is still a text field. To make it a drop-down of the site's spatial feature groups, add an <code>EarthRangerEnumResolver</code> transform with <code>type: spatial_feature_group</code> on <code>groupers.properties.groupers</code>.</li>
 </ul>
 <pre><code class="language-bash"># recompile spec.yaml (first time: --install; after that: --update, which bumps VERSION.yaml)

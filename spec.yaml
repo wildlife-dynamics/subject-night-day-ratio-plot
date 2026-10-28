@@ -5,7 +5,11 @@ requirements:
   channel: https://repo.prefix.dev/ecoscope-workflows/
 
 - name: ecoscope-workflows-ext-custom
-  version: ==0.1.0rc14
+  version: ==0.1.5
+  channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+
+- name: ecoscope-workflows-ext-ste
+  version: "0.0.24.*"
   channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
 - name: pydeck
@@ -104,7 +108,7 @@ workflow:
     filename: relocations
     filetype: geoparquet
 
-- name: Relocations To Trajectory
+- name: Trajectory Segment Filter
   id: to_trajectory
   task: relocations_to_trajectory
   partial:
@@ -151,7 +155,7 @@ workflow:
 
 - name: Extract Date from Segment Start
   id: decompose_date
-  task: ecoscope_workflows_ext_custom.tasks.transformation.decompose_datetime
+  task: decompose_datetime
   partial:
     df: ${{ workflow.sort_night_day_values.return }}
     datetime_column: segment_start
@@ -169,20 +173,28 @@ workflow:
 
 - name: Summarize Night Day Df
   id: night_day_ratio_df
-  task: summarize_df
+  task: summarize_night_day_ratio
   partial:
     groupby_cols:
-    - segment_start_date
     - subject_name
-    reset_index: true
-    summary_params:
-    - display_name: night_day_ratio
-      aggregator: night_day_ratio
-      decimal_places: 2
+    decimal_places: 2
+  mapvalues:
+    argnames:
+      - trajectory
+    argvalues: ${{ workflow.groups.return }}
+
+- name: Exclude null values from night_day_ratio
+  id: exclude_null_values
+  task: filter_rows
+  partial:
+    column_name: night_day_ratio
+    op: gt
+    value: 0
+    reset_index: false
   mapvalues:
     argnames:
     - df
-    argvalues: ${{ workflow.groups.return }}
+    argvalues: ${{ workflow.night_day_ratio_df.return }}
 
 - name: Persist Night Day Df
   id: persist_night_day_df
@@ -194,14 +206,14 @@ workflow:
   mapvalues:
     argnames:
     - df
-    argvalues: ${{ workflow.night_day_ratio_df.return }}
+    argvalues: ${{ workflow.exclude_null_values.return }}
 
 - name: Map Night Day DF
   id: night_day_df_mapped
   task: map_columns
   partial:
     rename_columns:
-      segment_start_date: Date
+      solar_date: Date
       subject_name: Subject Name
       night_day_ratio: Night Day Ratio
     drop_columns: []
@@ -211,15 +223,15 @@ workflow:
   mapvalues:
     argnames:
     - df
-    argvalues: ${{ workflow.night_day_ratio_df.return }}
+    argvalues: ${{ workflow.exclude_null_values.return }}
 
 - name: Draw Night Day Line Chart
   id: night_day_line_chart
   task: ecoscope.platform.tasks.results.draw_line_chart
   partial:
-    x_column: segment_start_date
-    y_column: night_day_ratio
-    category_column: subject_name
+    x_column: "Date"
+    y_column: "Night Day Ratio"
+    category_column: "Subject Name"
     smoothing: null
     line_kwargs:
       shape: "linear"
@@ -247,17 +259,6 @@ workflow:
   mapvalues:
     argnames:
     - dataframe
-    argvalues: ${{ workflow.night_day_ratio_df.return }}
-
-- name: Draw Night Day Table
-  id: night_day_table
-  task: draw_table
-  partial:
-    columns: null
-    table_config: null
-  mapvalues:
-    argnames:
-    - dataframe
     argvalues: ${{ workflow.night_day_df_mapped.return }}
 
 - name: Persist Night Day Line Chart
@@ -281,38 +282,11 @@ workflow:
     - data
     argvalues: ${{ workflow.persist_line_chart_text.return }}
 
-- name: Persist Night Day Table as HTML
-  id: night_day_text
-  task: persist_text
-  partial:
-    root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-  mapvalues:
-    argnames:
-    - text
-    argvalues: ${{ workflow.night_day_table.return }}
-
-- name: Create Table Widget Single View
-  id: table_widget_single_view
-  task: create_table_widget_single_view
-  partial:
-    title: 'Night Day Ratio Table'
-  map:
-    argnames:
-    - view
-    - data
-    argvalues: ${{ workflow.night_day_text.return }}
-
 - name: Merge Widget Views
   id: plot_widget_views
   task: merge_widget_views
   partial:
     widgets: ${{ workflow.plot_widget_single_view.return }}
-
-- name: Merge Widget Views
-  id: table_widget_views
-  task: merge_widget_views
-  partial:
-    widgets: ${{ workflow.table_widget_single_view.return }}
 
 - name: Gather Dashboard
   id: dashboard
@@ -320,7 +294,6 @@ workflow:
   partial:
     details: ${{ workflow.workflow_details.return }}
     widgets:
-    - ${{ workflow.plot_widget_views.return }}
-    - ${{ workflow.table_widget_views.return }}
+      - ${{ workflow.plot_widget_views.return }}
     groupers: ${{ workflow.groupers.return }}
     time_range: ${{ workflow.time_range.return }}
